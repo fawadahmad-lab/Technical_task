@@ -10,24 +10,23 @@ A backend system that processes **PDFs and images**, extracts and indexes their 
 ### High-Level Architecture
 
 ```
-
-User
-│
-▼
-FastAPI REST API
-│
-▼
-Agent Orchestration Layer
-│
-├── Ingestion Agent
-├── Indexing Agent
-└── QA Agent
-│
-▼
-Vector Store (FAISS) ──► LLM (Groq)
-│
-▼
-Response
+    User
+    │
+    ▼
+    FastAPI REST API
+    │
+    ▼
+    Agent Orchestration Layer
+    │
+    ├── Ingestion Agent
+    ├── Indexing Agent
+    └── QA Agent
+    │
+    ▼
+    Vector Store (FAISS) ──► LLM (Groq)
+    │
+    ▼
+    Response
 
 ```
 

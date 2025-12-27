@@ -1,11 +1,15 @@
-```markdown
-# Document AI Backend – Multi-Agent RAG System
+
+---
+
+## Document AI Backend – Multi-Agent RAG System
+
+---
 
 A backend system that processes **PDFs and images**, extracts and indexes their content using **AI agents**, and answers user questions through a **REST API** using **Retrieval-Augmented Generation (RAG)**.
 
 ---
 
-## 📋 System Architecture Overview
+##  System Architecture Overview
 
 ### High-Level Architecture
 

@@ -54,20 +54,6 @@ Response
 
 ---
 
-### Component Diagram
-
-```
-
-┌─────────┐    ┌─────────────┐    ┌──────────────┐    ┌────────────┐
-│ Client  │───▶│ FastAPI API │───▶│ Agent System │───▶│ FAISS      │
-│         │◀───│             │◀───│ (RAG Flow)   │◀───│ Vector DB  │
-└─────────┘    └─────────────┘    └──────────────┘    └────────────┘
-│        │               │
-▼        ▼               ▼
-┌────────┐ ┌────────┐   ┌──────────┐
-│ Files  │ │ SQLite │   │ Groq LLM │
-└────────┘ └────────┘   └──────────┘
-
 ```
 
 ---
@@ -343,13 +329,6 @@ curl -X GET http://localhost:8000/api/documents
 
 This project demonstrates a **modular, scalable, and production-oriented Document AI backend** using a **multi-agent RAG architecture**.
 It is suitable for **technical assessments**, **portfolio demonstration**, or as a **foundation for real-world systems**.
-
----
-
-**License:** MIT
-**Author:** Technical demonstration project
-
-```
 
 ---
 

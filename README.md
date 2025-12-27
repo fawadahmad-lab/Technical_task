@@ -1,7 +1,7 @@
 
 ---
 
-## Document AI Backend – Multi-Agent RAG System
+## Document AI Backend - Multi-Agent RAG System
 
 ---
 

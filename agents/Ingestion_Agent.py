@@ -1,171 +1,124 @@
 import PyPDF2
 import os
+import re
 
 class IngestionAgent:
-    """Agent 1: Handles file parsing & text extraction"""
+    """
+    Agent 1: File Ingestion & Text Extraction
+    
+    Purpose:
+        Handles the first stage of the RAG pipeline by processing various file formats
+        and extracting their textual content for downstream indexing and retrieval.
+    
+    What it does:
+        - Accepts PDF and image files (.pdf, .png, .jpg, .jpeg)
+        - Extracts text from PDFs using PyPDF2
+        - Performs OCR (Optical Character Recognition) on images using Tesseract
+        - Analyzes image filenames to infer content and extract metadata
+        - Generates searchable keywords from filenames
+        - Cleans and normalizes extracted text
+        - Returns structured text representation with metadata for images
+    
+    Key Features:
+        - Multi-format support (PDF + images)
+        - Intelligent filename analysis for context inference
+        - Graceful fallback when OCR is unavailable
+        - Text cleaning and normalization
+        - Metadata extraction for better searchability
+    
+    Output:
+        Clean, structured text ready for chunking and embedding in the indexing stage.
+    """
     
     def __init__(self):
         self.supported_formats = ['.pdf', '.png', '.jpg', '.jpeg']
     
     def extract_text(self, filepath: str) -> str:
-        """Extract text from PDF or image - ENHANCED VERSION"""
-        file_ext = os.path.splitext(filepath)[1].lower()
+        """Extract text from PDF or image"""
+        ext = os.path.splitext(filepath)[1].lower()
         filename = os.path.basename(filepath)
+        print(f"Processing: {filename}")
         
-        print(f"Processing: {filename} ({file_ext})")
-        
-        if file_ext == '.pdf':
-            return self._extract_from_pdf(filepath)
-        elif file_ext in ['.png', '.jpg', '.jpeg']:
+        if ext == '.pdf':
+            return self._extract_pdf(filepath)
+        elif ext in ['.png', '.jpg', '.jpeg']:
             return self._process_image(filename, filepath)
-        else:
-            return f"File: {filename}. Content will be processed."
+        return f"File: {filename}. Content will be processed."
     
     def _process_image(self, filename: str, filepath: str) -> str:
-        """Process image with OCR and intelligent description"""
-        
-        # Try OCR first - this is the actual content
-        ocr_text = self._try_ocr(filepath)
-        
-        # Create semantic description from filename
-        semantic_description = self._analyze_filename(filename)
-        
-        # Build comprehensive text representation
-        result_parts = []
-        
-        # Add semantic description
-        result_parts.append(f"IMAGE FILE: {filename}")
-        result_parts.append(f"Description: {semantic_description}")
-        
-        # Add OCR text if available
-        if ocr_text and len(ocr_text.strip()) > 0:
-            result_parts.append(f"\nEXTRACTED TEXT FROM IMAGE:")
-            result_parts.append(ocr_text)
-            result_parts.append(f"\n[OCR Status: Text successfully extracted from image]")
-        else:
-            result_parts.append(f"\n[OCR Status: No text detected in image]")
-        
-        # Add searchable keywords
+        """Process image with OCR and metadata"""
+        ocr_text = self._ocr(filepath)
+        description = self._analyze_filename(filename)
         keywords = self._extract_keywords(filename)
-        if keywords:
-            result_parts.append(f"\nKeywords: {', '.join(keywords)}")
         
-        full_text = "\n".join(result_parts)
-        print(f"Image processing result length: {len(full_text)} characters")
+        parts = [
+            f"IMAGE FILE: {filename}",
+            f"Description: {description}",
+            f"\nEXTRACTED TEXT:" if ocr_text else "\n[No text detected]",
+            ocr_text if ocr_text else "",
+            f"\nKeywords: {', '.join(keywords)}" if keywords else ""
+        ]
         
-        return full_text
+        return "\n".join(filter(None, parts))
     
     def _analyze_filename(self, filename: str) -> str:
-        """Analyze filename to understand image content"""
-        filename_lower = filename.lower()
+        """Extract content hints from filename"""
+        lower = filename.lower()
+        tags = {
+            "genai|gen-ai": "Generative AI content",
+            "business.*model": "Business model document",
+            "canvas": "Canvas framework",
+            "polyglot|connect": "Multi-language platform",
+            "screenshot": "Application screenshot",
+            "diagram|chart": "Visual diagram",
+            "architecture": "Architecture diagram",
+            "task|technical": "Technical documentation"
+        }
         
-        descriptions = []
-        
-        # Check for common patterns
-        if "genai" in filename_lower or "gen-ai" in filename_lower:
-            descriptions.append("Generative AI related content")
-        if "ai" in filename_lower and "genai" not in filename_lower:
-            descriptions.append("Artificial Intelligence content")
-        if "business" in filename_lower and "model" in filename_lower:
-            descriptions.append("Business model or strategic planning document")
-        if "canvas" in filename_lower:
-            descriptions.append("Canvas-style framework or diagram")
-        if "polyglot" in filename_lower or "connect" in filename_lower:
-            descriptions.append("Multi-language or connectivity platform")
-        if "screenshot" in filename_lower:
-            descriptions.append("Screenshot of application or interface")
-        if "diagram" in filename_lower or "chart" in filename_lower:
-            descriptions.append("Visual diagram or chart")
-        if "architecture" in filename_lower:
-            descriptions.append("System or software architecture diagram")
-        if "task" in filename_lower or "technical" in filename_lower:
-            descriptions.append("Technical documentation or task specification")
-        
-        if descriptions:
-            return "This image contains: " + "; ".join(descriptions)
-        else:
-            return "Image file for visual reference"
+        matches = [desc for pattern, desc in tags.items() if re.search(pattern, lower)]
+        return "This image contains: " + "; ".join(matches) if matches else "Image file"
     
     def _extract_keywords(self, filename: str) -> list:
-        """Extract searchable keywords from filename"""
-        import re
-        
-        # Remove file extension
-        name_without_ext = os.path.splitext(filename)[0]
-        
-        # Split on common separators
-        words = re.split(r'[_\-\s\.]+', name_without_ext.lower())
-        
-        # Filter out very short words and common stopwords
+        """Extract keywords from filename"""
+        name = os.path.splitext(filename)[0]
+        words = re.split(r'[_\-\s\.]+', name.lower())
         stopwords = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for'}
-        keywords = [w for w in words if len(w) > 2 and w not in stopwords]
-        
-        return keywords
+        return [w for w in words if len(w) > 2 and w not in stopwords]
     
-    def _try_ocr(self, filepath: str) -> str:
-        """Try OCR with better error handling and feedback"""
+    def _ocr(self, filepath: str) -> str:
+        """Attempt OCR with graceful fallback"""
         try:
             import pytesseract
             from PIL import Image
             
-            # Set Tesseract path for Windows
             if os.name == 'nt':
-                tesseract_paths = [
-                    r"D:\Softwares_Downloaded\tesseract.exe",
-                    r"C:\Program Files\Tesseract-OCR\tesseract.exe",
-                    r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
-                ]
-                for path in tesseract_paths:
+                paths = [r"D:\Softwares_Downloaded\tesseract.exe",
+                        r"C:\Program Files\Tesseract-OCR\tesseract.exe"]
+                for path in paths:
                     if os.path.exists(path):
                         pytesseract.pytesseract.tesseract_cmd = path
-                        print(f"Using Tesseract at: {path}")
                         break
             
-            print(f"Attempting OCR on {os.path.basename(filepath)}...")
-            image = Image.open(filepath)
-            
-            # Try OCR with better configuration
-            custom_config = r'--oem 3 --psm 6'
-            text = pytesseract.image_to_string(image, config=custom_config)
-            
-            # Clean the text
-            text = text.strip()
-            
-            if text and len(text) > 5:  # Meaningful text
-                print(f"OCR successful: extracted {len(text)} characters")
-                return text
-            else:
-                print("OCR completed but no meaningful text found")
-                return ""
-            
-        except ImportError:
-            print("WARNING: pytesseract not installed. Install with: pip install pytesseract")
-            print("Also install Tesseract-OCR from: https://github.com/UB-Mannheim/tesseract/wiki")
-            return ""
+            text = pytesseract.image_to_string(Image.open(filepath), 
+                                              config='--oem 3 --psm 6').strip()
+            return text if len(text) > 5 else ""
         except Exception as e:
-            print(f"OCR error: {str(e)}")
+            print(f"OCR unavailable: {e}")
             return ""
     
-    def _extract_from_pdf(self, filepath: str) -> str:
+    def _extract_pdf(self, filepath: str) -> str:
         """Extract text from PDF"""
-        text = ""
         try:
-            with open(filepath, 'rb') as file:
-                reader = PyPDF2.PdfReader(file)
-                for page_num in range(len(reader.pages)):
-                    page = reader.pages[page_num]
-                    text += page.extract_text() + "\n"
-            return text
+            with open(filepath, 'rb') as f:
+                reader = PyPDF2.PdfReader(f)
+                return "\n".join(page.extract_text() for page in reader.pages)
         except Exception as e:
-            print(f"PDF extraction error: {e}")
-            return f"PDF content could not be extracted. Error: {str(e)}"
+            return f"PDF extraction failed: {e}"
     
     def clean_text(self, text: str) -> str:
         """Clean extracted text"""
         if not text:
             return ""
-        import re
-        # Preserve structure but remove excessive whitespace
-        text = re.sub(r'\n\s*\n\s*\n+', '\n\n', text)  # Max 2 newlines
-        text = re.sub(r' +', ' ', text)  # Single spaces
+        text = re.sub(r'\n\s*\n\s*\n+', '\n\n', text)
+        text = re.sub(r' +', ' ', text)
         return text.strip()
